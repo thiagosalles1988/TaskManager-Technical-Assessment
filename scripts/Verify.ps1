@@ -1,4 +1,4 @@
-param([string]$SqlConnectionString)
+param([string]$SqlConnectionString, [switch]$RequireSql)
 $ErrorActionPreference = 'Stop'
 function Invoke-TaskManagerNpm {
     param([string[]]$NpmArguments)
@@ -14,6 +14,9 @@ function Invoke-TaskManagerNpm {
 }
 $taskManagerRoot = Split-Path -Parent $PSScriptRoot
 if ($SqlConnectionString) { $env:TaskManagerTests__ConnectionString = $SqlConnectionString }
+if ($RequireSql -and -not $env:TaskManagerTests__ConnectionString) {
+    throw 'SQL verification is required. Supply -SqlConnectionString or TaskManagerTests__ConnectionString.'
+}
 Push-Location $taskManagerRoot
 try {
     dotnet restore TaskManager.slnx
@@ -24,7 +27,7 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Tests failed.' }
     Push-Location taskmanager-web
     try {
-        Invoke-TaskManagerNpm -NpmArguments @('install')
+        Invoke-TaskManagerNpm -NpmArguments @('ci')
         Invoke-TaskManagerNpm -NpmArguments @('test')
         Invoke-TaskManagerNpm -NpmArguments @('run', 'build')
     } finally { Pop-Location }

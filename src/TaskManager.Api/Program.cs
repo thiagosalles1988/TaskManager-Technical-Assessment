@@ -1,6 +1,5 @@
 using System.Security.Claims;
 using System.Text;
-using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.RateLimiting;
@@ -13,7 +12,10 @@ using TaskManager.Infrastructure;
 var builder = WebApplication.CreateBuilder(args);
 builder.WebHost.ConfigureKestrel(options => options.Limits.MaxRequestBodySize = 32 * 1024);
 builder.Services.AddControllers().AddJsonOptions(options =>
-    options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter(allowIntegerValues: false)));
+{
+    options.JsonSerializerOptions.Converters.Add(new TaskStateJsonConverter());
+    options.JsonSerializerOptions.Converters.Add(new UtcDateTimeOffsetJsonConverter());
+});
 builder.Services.AddOpenApi();
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<ApiExceptionHandler>();
@@ -78,13 +80,8 @@ var app = builder.Build();
 app.UseExceptionHandler();
 app.UseStatusCodePages(async context =>
 {
-    var service = context.HttpContext.RequestServices.GetRequiredService<IProblemDetailsService>();
-    await service.TryWriteAsync(new()
-    {
-        HttpContext = context.HttpContext,
-        ProblemDetails = new()
-        { Status = context.HttpContext.Response.StatusCode, Instance = context.HttpContext.Request.Path }
-    });
+    await ProblemResponses.WriteAsync(context.HttpContext,
+        new() { Status = context.HttpContext.Response.StatusCode }, context.HttpContext.RequestAborted);
 });
 app.Use(async (context, next) =>
 {

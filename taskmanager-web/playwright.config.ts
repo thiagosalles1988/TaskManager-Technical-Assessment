@@ -8,9 +8,20 @@ export default defineConfig({
   projects: [
     {
       name: 'desktop',
-      use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 1000 } },
+      use: {
+        ...devices['Desktop Chrome'],
+        viewport: { width: 1440, height: 1000 },
+        timezoneId: 'UTC',
+      },
     },
-    { name: 'mobile', use: { ...devices['iPhone 13'], defaultBrowserType: 'chromium' } },
+    {
+      name: 'mobile',
+      use: {
+        ...devices['iPhone 13'],
+        defaultBrowserType: 'chromium',
+        timezoneId: 'America/Sao_Paulo',
+      },
+    },
   ],
   webServer: {
     command: 'npm start -- --port 4200',

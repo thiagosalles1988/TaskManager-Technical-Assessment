@@ -26,14 +26,23 @@ export function createTaskForm() {
     }),
   });
 }
-export function taskInput(form: ReturnType<typeof createTaskForm>): TaskInput {
+export function taskInput(
+  form: ReturnType<typeof createTaskForm>,
+  originalDueDateUtc: string | null = null,
+): TaskInput {
   if (!form.valid) throw new Error('Review the highlighted fields.');
   const value = form.getRawValue();
   return {
     title: value.title.trim(),
     description: value.description,
     status: value.status,
-    dueDateUtc: value.dueDate ? new Date(value.dueDate).toISOString() : null,
+    // Keep the server's exact timestamp (including sub-millisecond ticks) for unrelated edits.
+    dueDateUtc:
+      value.dueDate === localDateInput(originalDueDateUtc)
+        ? originalDueDateUtc
+        : value.dueDate
+          ? new Date(value.dueDate).toISOString()
+          : null,
   };
 }
 

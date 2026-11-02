@@ -8,7 +8,7 @@ if (-not $env:Jwt__SigningKey) {
     try { $taskManagerRng.GetBytes($taskManagerBytes) }
     finally { $taskManagerRng.Dispose() }
     $env:Jwt__SigningKey = [Convert]::ToBase64String($taskManagerBytes)
-    Write-Host 'Generated an ephemeral development signing key. Restarting this script invalidates old sessions.'
+    Write-Host 'Generated a development signing key for this shell. A fresh shell generates a new key; an existing environment key is reused.'
 }
 $env:ASPNETCORE_ENVIRONMENT = 'Development'
 $env:Database__InitializeOnStart = 'true'

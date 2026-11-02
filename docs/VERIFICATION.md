@@ -1,6 +1,26 @@
 # Verification report
 
-Executed locally on **2026-11-02 (America/Sao_Paulo)**. These are observed results, not a claim of deployment readiness or exhaustive security testing. Full generated logs/TRX/browser screenshots are retained locally in ignored `.superpowers*` and `taskmanager-web/test-results`; they are intentionally not repository artifacts.
+Current verification: **2026-11-02 (America/Sao_Paulo)**. The [final stabilization record](STABILIZATION.md) supersedes the earlier counts and findings below. These are local execution results, not deployment approval.
+
+## Final stabilization results
+
+| Check actually executed                                            | Result                                                                                                                                                      |
+| ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `scripts/Verify.ps1 -RequireSql` with real SQL configuration       | Exit 0; restore, Release build (0 warnings/errors), 33 unit +93 integration passed (0 failed/skipped), npm ci, 17 Angular tests and production build passed |
+| SQL-less pipeline filter                                           | 53 passed, 0 failed/skipped; real JWT/MVC/error middleware, persistence substitutes only                                                                    |
+| `Verify.ps1 -RequireSql` without SQL configuration                 | Expected fail-fast configuration error verified                                                                                                             |
+| Full npm and production-only npm audits                            | Exit 0; zero vulnerabilities reported                                                                                                                       |
+| NuGet audit including transitive packages                          | Exit 0; no vulnerable packages reported for all six projects                                                                                                |
+| Desktop UTC/mobile America/Sao_Paulo Chromium                      | Six browser cases passed, 0 failed/skipped, against isolated real SQL/API                                                                                   |
+| Explicit Production `--migrate` on an empty generated SQL database | Exit 0                                                                                                                                                      |
+| Database cleanup                                                   | 0 remaining generated TaskManagerTest_* databases; owned test server processes stopped                                                                      |
+| Git/current-file publication scan                                  | No secret-pattern hits, symlink entries or publishable build artifacts; one commit/84 historical blobs inspected, no remote                                 |
+
+Raw outputs remain locally in ignored `TestResults/stabilization/`. Portable evidence, regression history and the final file list are in [STABILIZATION](STABILIZATION.md). The developer confirmed Codex ran inside Visual Studio Code; independent human review remains pending.
+
+## Earlier verification record
+
+The following records describe the earlier implementation before stabilization. Earlier raw logs/TRX/screenshots were removed during requested cleanup; these historical summaries remain. Earlier advisory and date-edit limitations below were subsequently resolved as described above.
 
 ## Completed
 
@@ -12,24 +32,24 @@ Executed locally on **2026-11-02 (America/Sao_Paulo)**. These are observed resul
 
 ## Verified
 
-| Executed command/check | Observed result |
-|---|---|
-| `dotnet restore TaskManager.slnx` | Success using only nuget.org |
-| `dotnet build TaskManager.slnx --configuration Release --no-restore` | Success, 0 warnings, 0 errors |
-| `dotnet test TaskManager.slnx --configuration Release --no-build` | **33 unit + 31 integration passed**, 0 failed, 0 skipped |
-| `dotnet list TaskManager.slnx package --vulnerable --include-transitive` | No vulnerable NuGet packages reported for all six projects |
-| `npm install` | Success; 16 moderate development-tool advisories remain visible |
-| `npm test` | **14 tests passed** in three files |
-| `npm run build` | Production build succeeded, initial bundle approximately 273 kB, within configured budgets |
-| `npm audit --omit=dev --audit-level=moderate` | 0 production vulnerabilities reported |
-| `npm run test:e2e` | **4 passed**: two workflows each on desktop and mobile Chromium |
-| `scripts/Start-DevApi.ps1` | Started actual API on localhost:5100 with generated ephemeral key, schema initialization and demo seed |
-| `scripts/Verify.ps1 -SqlConnectionString '...'` | Full helper completed restore/build/64 .NET tests/npm install/14 frontend tests/production build after PowerShell stderr correction |
-| Public API / OpenAPI | `/api/public/info` returned 200; development OpenAPI contained all required routes |
-| Test database cleanup | SQL query found **0** remaining TaskManagerTest_* databases |
-| Staged snapshot audit | No symlink mode entries, filesystem reparse points, forbidden package references or tracked build/dependency artifacts |
-| Secret pattern scan | No private keys, cloud/GitHub tokens, JWT literals or credential-bearing password connection strings found in staged text |
-| Original workspace | Church main checkout remained clean and unchanged; TaskManager was subsequently moved to its own folder and independent local repository at the user's request |
+| Executed command/check                                                   | Observed result                                                                                                                                  |
+| ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `dotnet restore TaskManager.slnx`                                        | Success using only nuget.org                                                                                                                     |
+| `dotnet build TaskManager.slnx --configuration Release --no-restore`     | Success, 0 warnings, 0 errors                                                                                                                    |
+| `dotnet test TaskManager.slnx --configuration Release --no-build`        | **33 unit + 31 integration passed**, 0 failed, 0 skipped                                                                                         |
+| `dotnet list TaskManager.slnx package --vulnerable --include-transitive` | No vulnerable NuGet packages reported for all six projects                                                                                       |
+| `npm install`                                                            | Success; 16 moderate development-tool advisories remain visible                                                                                  |
+| `npm test`                                                               | **14 tests passed** in three files                                                                                                               |
+| `npm run build`                                                          | Production build succeeded, initial bundle approximately 273 kB, within configured budgets                                                       |
+| `npm audit --omit=dev --audit-level=moderate`                            | 0 production vulnerabilities reported                                                                                                            |
+| `npm run test:e2e`                                                       | **4 passed**: two workflows each on desktop and mobile Chromium                                                                                  |
+| `scripts/Start-DevApi.ps1`                                               | Started actual API on localhost:5100 with generated ephemeral key, schema initialization and demo seed                                           |
+| `scripts/Verify.ps1 -SqlConnectionString '...'`                          | Full helper completed restore/build/64 .NET tests/npm install/14 frontend tests/production build after PowerShell stderr correction              |
+| Public API / OpenAPI                                                     | `/api/public/info` returned 200; development OpenAPI contained all required routes                                                               |
+| Test database cleanup                                                    | SQL query found **0** remaining TaskManagerTest_* databases                                                                                      |
+| Staged snapshot audit                                                    | No symlink mode entries, filesystem reparse points, forbidden package references or tracked build/dependency artifacts                           |
+| Secret pattern scan                                                      | No private keys, cloud/GitHub tokens, JWT literals or credential-bearing password connection strings found in staged text                        |
+| Original workspace                                                       | The unrelated original checkout remained unchanged; TaskManager was subsequently moved to its independent local repository at the user's request |
 
 Real SQL tests used Windows integrated authentication on `.\SQLEXPRESS`, generated unique isolated databases and dropped only those databases. SQL was available; none of those tests were skipped. Most HTTP tests use real repositories/auth/JWT/SQL; one unexpected-error boundary test deliberately substitutes a throwing task repository to verify safe 500 responses.
 
@@ -47,9 +67,9 @@ Windows PowerShell 5.1 also exposed two helper issues during actual execution: t
 
 - Public deployment, reverse-proxy/TLS/CSP configuration, production SQL credentials/permissions, backups or operational monitoring.
 - Physical mobile devices, Safari/Firefox, screen-reader audit, load/stress testing or formal penetration testing.
-- Human independent code review, IDE attribution confirmation, interview rehearsal and final acceptance/submission.
+- Human independent code review, interview rehearsal and final acceptance/submission.
 
-## Known limitations
+## Historical limitations before stabilization
 
 - 16 moderate development dependency advisories in Angular CLI's minimatch-related dependency tree; production npm audit is clean. A major CLI upgrade is npm's proposed fix and was not forced into this assessment.
 - JWT sessionStorage XSS tradeoff, no refresh/revocation/email verification/reset/MFA, process-local rate limiting, no pagination, last-write-wins across tabs/devices, minute-precision UI date editing.
@@ -58,7 +78,7 @@ Windows PowerShell 5.1 also exposed two helper issues during actual execution: t
 
 ## Manual steps
 
-1. Open `C:\Users\thiag\source\repos\TaskManager` and read README/GENAI. Confirm you can explain the code and correct the IDE attribution if needed.
+1. Open the TaskManager repository root and read README/GENAI. Confirm you can explain the code; tool/IDE attribution is now confirmed.
 2. Create/configure a disposable TaskManager SQL database, then start the API with `scripts/Start-DevApi.ps1` and Angular with `npm start` from `taskmanager-web`. Exact alternatives are in README.
 3. Sign in using the documented development-only demo credentials and rehearse docs/DEMO.md. Rerun Verify.ps1 and browser tests in your environment before submission.
-4. Review the local source, dependency advisories and secrets. Only after explicit publication authorization, configure the intended TaskManager GitHub remote and publish its independent `main` branch. No push, merge into Church main, remote repository creation or submission was performed here.
+4. Review the local source, dependency audits and secrets before sharing the assessment. The developer subsequently authorized publishing the independent `main` branch at [TaskManager-Technical-Assessment](https://github.com/thiagosalles1988/TaskManager-Technical-Assessment); see the [publication authorization](evidence/DEVELOPMENT.md#publication-authorization). Earlier verification results above predate publication. Submission to the interview panel remains a separate action.

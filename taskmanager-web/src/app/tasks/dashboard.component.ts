@@ -6,6 +6,7 @@ import {
   computed,
   inject,
   signal,
+  ChangeDetectionStrategy,
 } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
@@ -18,6 +19,7 @@ import { apiError } from '../core/api-error';
 @Component({
   selector: 'app-dashboard',
   imports: [RouterLink, DatePipe],
+  changeDetection: ChangeDetectionStrategy.Eager,
   template: ` <section class="page-heading">
       <div>
         <span class="eyebrow">Your personal workspace</span>

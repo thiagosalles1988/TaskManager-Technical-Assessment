@@ -5,7 +5,7 @@ using TaskManager.Domain;
 
 namespace TaskManager.Api;
 
-public sealed class ApiExceptionHandler(IProblemDetailsService problems, ILogger<ApiExceptionHandler> logger) : IExceptionHandler
+public sealed class ApiExceptionHandler(ILogger<ApiExceptionHandler> logger) : IExceptionHandler
 {
     public async ValueTask<bool> TryHandleAsync(HttpContext context, Exception exception, CancellationToken cancellationToken)
     {
@@ -24,8 +24,7 @@ public sealed class ApiExceptionHandler(IProblemDetailsService problems, ILogger
         problem.Title = status switch { 400 => "Validation failed", 401 => "Invalid credentials", 404 => "Resource not found", 409 => exception is DuplicateEmailException ? "Email already registered" : "Task already exists", _ => "An unexpected error occurred" };
         problem.Instance = context.Request.Path;
         problem.Extensions["traceId"] = context.TraceIdentifier;
-        context.Response.StatusCode = status;
-        await problems.WriteAsync(new() { HttpContext = context, ProblemDetails = problem });
+        await ProblemResponses.WriteAsync(context, problem, cancellationToken);
         return true;
     }
 }

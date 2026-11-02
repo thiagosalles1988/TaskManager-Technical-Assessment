@@ -1,4 +1,4 @@
-import { Component, DestroyRef, inject, signal } from '@angular/core';
+import { Component, DestroyRef, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -11,6 +11,7 @@ import { createTaskForm, localDateInput, taskInput } from './task-form';
 @Component({
   selector: 'app-task-editor',
   imports: [ReactiveFormsModule, RouterLink],
+  changeDetection: ChangeDetectionStrategy.Eager,
   template: ` <div class="editor-wrap">
     <a class="back-link" routerLink="/tasks">← Back to your tasks</a>
     <section class="page-heading">
@@ -71,7 +72,10 @@ import { createTaskForm, localDateInput, taskInput } from './task-form';
               formControlName="dueDate"
               aria-describedby="date-help"
             />
-            <p id="date-help" class="field-help">Your local time. Overdue dates are allowed.</p>
+            <p id="date-help" class="field-help">
+              Your local time, to the minute. Existing precision is kept unless you change this
+              field. Overdue dates are allowed.
+            </p>
             @if (form.controls.dueDate.invalid) {
               <span class="field-error">Enter a valid date.</span>
             }
@@ -91,6 +95,7 @@ export class TaskEditorComponent {
   private readonly api = inject(TaskApi);
   private readonly router = inject(Router);
   private readonly destroy = inject(DestroyRef);
+  private originalDueDateUtc: string | null = null;
   readonly id = inject(ActivatedRoute).snapshot.paramMap.get('id');
   readonly form = createTaskForm();
   readonly statuses = taskStatuses;
@@ -108,13 +113,15 @@ export class TaskEditorComponent {
           finalize(() => this.loading.set(false)),
         )
         .subscribe({
-          next: (task) =>
+          next: (task) => {
+            this.originalDueDateUtc = task.dueDateUtc;
             this.form.patchValue({
               title: task.title,
               description: task.description,
               status: task.status,
               dueDate: localDateInput(task.dueDateUtc),
-            }),
+            });
+          },
           error: (error) => {
             this.error.set(apiError(error));
             this.loadFailed.set(true);
@@ -126,7 +133,7 @@ export class TaskEditorComponent {
     if (this.form.invalid || this.saving()) return;
     this.saving.set(true);
     this.error.set('');
-    const input = taskInput(this.form);
+    const input = taskInput(this.form, this.originalDueDateUtc);
     const request: Observable<unknown> = this.id
       ? this.api.update(this.id, input)
       : this.api.create(input);

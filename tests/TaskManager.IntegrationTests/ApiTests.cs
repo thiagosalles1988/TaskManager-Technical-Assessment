@@ -166,6 +166,38 @@ public class ApiTests
     }
     private static string Email() => $"{Guid.NewGuid():N}@example.test";
 
+    [TestCase("2026-11-04T15:00:00")]
+    [TestCase("2026-11-04T15:00:00.12345678Z")]
+    [TestCase("2026-02-30T15:00:00Z")]
+    [TestCase("not-a-date")]
+    public async Task Invalid_or_offsetless_dates_return_validation_errors(string dueDateUtc)
+    {
+        using var client = await CreateUserClient();
+        using var response = await client.PostAsJsonAsync("/api/tasks", new { title = "Date validation", status = "Todo", dueDateUtc });
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+        Assert.That(await response.Content.ReadAsStringAsync(), Does.Contain("errors"));
+    }
+
+    [TestCase("2026-11-04T15:00:00.1234567Z")]
+    [TestCase("2026-11-04T20:30:00.1234567+05:30")]
+    [TestCase("2026-11-04T12:00:00.1234567-03:00")]
+    public async Task Utc_due_date_round_trips_through_sql_and_unrelated_updates(string dueDateUtc)
+    {
+        const string expected = "2026-11-04T15:00:00.1234567Z";
+        using var client = await CreateUserClient();
+        using var create = await client.PostAsJsonAsync("/api/tasks", new { title = "Precision", status = "Todo", dueDateUtc });
+        Assert.That(create.StatusCode, Is.EqualTo(HttpStatusCode.Created));
+        var created = await create.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.That(created.GetProperty("dueDateUtc").GetString(), Is.EqualTo(expected));
+        var path = $"/api/tasks/{created.GetProperty("id").GetGuid()}";
+        var persisted = await client.GetFromJsonAsync<JsonElement>(path);
+        Assert.That(persisted.GetProperty("dueDateUtc").GetString(), Is.EqualTo(expected));
+        using var update = await client.PutAsJsonAsync(path, new { title = "Title only changed", status = "Completed", dueDateUtc = persisted.GetProperty("dueDateUtc").GetString() });
+        Assert.That(update.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
+        var edited = await client.GetFromJsonAsync<JsonElement>(path);
+        Assert.That(edited.GetProperty("dueDateUtc").GetString(), Is.EqualTo(expected));
+    }
+
     [Test]
     public async Task Unexpected_failure_returns_generic_problem_without_exception_details()
     {

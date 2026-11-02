@@ -1,32 +1,85 @@
-# Generative AI development record
+# Generative AI Development Record
 
-## Tool and provenance
+## 1. Overview and AI Tool
 
-AI coding tool: **OpenAI Codex** operating on the supplied local workspace. The assessment's requested attribution is **“OpenAI Codex inside Visual Studio Code.”** This execution verifies Codex's tool actions and local files; the IDE/window host is not independently established by the runtime. The human developer must confirm the Visual Studio Code attribution before submission. No human review, approval or decision is invented here.
+**OpenAI Codex** generated and refined TaskManager using source edits and standard
+.NET and Angular CLI scaffolds. Codex performed source inspection, automated
+verification and separate AI reviews; no personal developer review is claimed.
+The human developer confirmed that development used **OpenAI Codex inside Visual Studio Code**. This confirms the tool and host, not personal code review or approval.
 
-## Actual prompt
+## 2. Actual Prompt Used
 
-The complete prompt supplied by the user is preserved verbatim in [docs/ASSESSMENT-PROMPT.txt](docs/ASSESSMENT-PROMPT.txt). It is the actual generation request, not a shortened prompt retrospectively presented as history. It starts:
-
-> You are a Senior .NET Software Engineer, Software Architect, and Technical Lead.
->
-> Your task is to build a complete, production-minded but appropriately scoped Full Stack application for a Senior .NET Developer technical interview.
-
-Its task-management API requirement includes:
+The [complete original prompt](docs/ASSESSMENT-PROMPT.txt) is retained unchanged.
+The following are verbatim excerpts from that single request, not separate prompt
+iterations. Its opening establishes the role and objective:
 
 ```text
+You are a Senior .NET Software Engineer, Software Architect, and Technical Lead.
+
+Your task is to build a complete, production-minded but appropriately scoped Full Stack application for a Senior .NET Developer technical interview.
+```
+
+Its complete task-management API section states:
+
+```text
+7. TASK MANAGEMENT API
+==================================================
+
+Implement the following endpoints:
+
 GET    /api/tasks
 GET    /api/tasks/{id}
 POST   /api/tasks
 PUT    /api/tasks/{id}
 DELETE /api/tasks/{id}
+
+All task endpoints require authentication.
+
+Use appropriate HTTP status codes:
+
+200 - Successful retrieval
+201 - Resource created
+204 - Successful update or deletion
+400 - Validation failure
+401 - Missing or invalid authentication
+404 - Resource not found or not owned
+409 - Conflict when applicable
+500 - Unexpected server errors
+
+Use consistent error responses, preferably ProblemDetails.
+
+Never expose exception stack traces in production responses.
+
+Task validation:
+
+- Title is required.
+- Title maximum length: 120 characters.
+- Description maximum length: 2000 characters.
+- Status must be a supported value.
+- Due date must be a valid date when provided.
+- A task must always belong to a user.
+- UserId must never be trusted from the client request.
+
+Supported task statuses:
+- Todo
+- InProgress
+- Completed
+
+Do not add unnecessary business rules that prevent legitimate overdue tasks.
+
+Use consistent request and response DTOs.
+
+Return task information without exposing sensitive user data.
 ```
 
-The supplied prompt also requires .NET 10 MVC, Angular, SQL Server, Microsoft.Data.SqlClient, raw parameterized ADO.NET, Clean Architecture, NUnit/NSubstitute, TDD evidence, JWT ownership security and real verification. No alternate initial-scaffold prompt or fabricated prompt iteration is claimed. Codex used local planning/TDD/review workflow instructions and generated source via file edits and the standard dotnet/Angular CLI scaffolds.
+The same prompt requires .NET 10 MVC, Clean Architecture, SQL Server, raw
+Microsoft.Data.SqlClient, parameterized queries, JWT authentication and
+NUnit/NSubstitute testing. It prohibits ORMs, Dapper and mediator libraries.
 
-## Representative actual generated code
+## 3. Generated Code Example
 
-From `src/TaskManager.Infrastructure/SqlTaskRepository.cs`, the implemented update operation:
+Actual generated update method from
+[SqlTaskRepository.cs](src/TaskManager.Infrastructure/SqlTaskRepository.cs):
 
 ```csharp
 public async Task<bool> UpdateAsync(TaskItem task, Guid userId, CancellationToken cancellationToken)
@@ -44,51 +97,117 @@ public async Task<bool> UpdateAsync(TaskItem task, Guid userId, CancellationToke
 }
 ```
 
-The helpers add typed SqlParameters; no user input is concatenated into SQL. This sample is actual code from this development, not a hypothetical improved example. Formatting may differ after the solution formatter.
+`AddIdentity` and `AddFields` add typed `SqlParameter` values. The owner predicate,
+affected-row check, cancellation and asynchronous disposal are explicit.
 
-## Technical evaluation
+## 4. Technical Evaluation of AI Output
 
-The generated design separates invariants, application use cases, SQL and HTTP. Specific repositories avoid a custom persistence framework. The SQL update predicate enforces owner isolation even if an application lookup is mistaken. DTOs avoid exposing passwords/hashes or binding owner IDs. Controllers delegate business work. Cancellation and asynchronous resource disposal reach SqlClient. Review did not identify a confirmed backend IDOR, SQL injection or inverted project dependency.
+Codex checked the implementation against the request rather than treating generated
+code or passing tests as sufficient evidence. The reviewed design separates domain
+invariants, application use cases, SQL persistence and thin MVC controllers.
+Specific repositories and narrow password/token interfaces keep business logic
+independent of SQL and HTTP without introducing a generic persistence framework.
+DTOs neither expose password hashes nor bind client-selected ownership.
 
-The system remains deliberately small. It is not a full identity provider or operationally hardened deployment. Stateless tokens lack refresh/revocation, task updates use last-write-wins, and database scripts use version names rather than checksum validation. The human must evaluate these tradeoffs against actual deployment requirements.
+The [security review](docs/REVIEW-2026-11-02.md) found no confirmed backend IDOR,
+SQL injection or inverted dependency, but reproduced defects despite green suites.
+The developer must critically assess those findings, test quality and deployment
+tradeoffs; AI review does not establish human approval.
 
-## Actual process and validation
+## 5. Issues Identified and Improvements
 
-Detailed factual evidence is in [docs/evidence/DEVELOPMENT.md](docs/evidence/DEVELOPMENT.md); final executed commands/results are in [docs/VERIFICATION.md](docs/VERIFICATION.md).
+The [development evidence](docs/evidence/DEVELOPMENT.md) records these corrections:
 
-Important behaviors were developed test-first in batches: 11 domain cases failed before invariants were implemented; 22 service cases failed before service implementation; 14 HTTP cases failed before endpoint/auth wiring; 10 Angular auth/form cases failed before frontend logic. The initial SQL RED occurred at the unimplemented shared schema fixture, not separately at each repository method. Scaffolding, DTOs, configuration, UI markup and later seed/password/boundary verification tests were not all produced through individual RED/GREEN cycles. This is not a claim of exhaustive test-first development.
+| Detected issue                                                                                               | Implemented correction and evidence                                                                                                                                                                     |
+| ------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Inherited private NuGet feed returned 401.                                                                   | Repository-local `NuGet.Config` uses nuget.org; restore succeeded without adding feed credentials.                                                                                                      |
+| Restore flagged vulnerable transitive PKCS packages with NU1902/NU1903.                                      | SqlClient was updated to 7.1.1 and PKCS pinned to 10.0.14; restore passed with warnings treated as errors.                                                                                              |
+| Domain, service and HTTP behaviors were initially absent.                                                    | Implemented invariant validation, use cases, thin controllers, JWT wiring and owner-scoped repositories after recorded failing tests.                                                                   |
+| Concurrent demo seeding collided on sample IDs.                                                              | Mapped duplicate task keys to an application conflict; the seeder accepts the race only after an owner-scoped re-read confirms the sample exists.                                                       |
+| Angular compilation rejected observable unions; initial selectors showed Todo for other saved states.        | Added a common observable type and explicit matching-option selection; production compilation and browser regressions passed.                                                                           |
+| Overlapping dashboard requests could restore stale results; failed writes left an unsaved selection visible. | Serialized mutations, cancelled superseded reads and retained server selection until success; regression tests passed.                                                                                  |
+| Blocked session storage could prevent authentication-service construction.                                   | Guarded storage access and added a memory-only fallback with reliable logout; the blocked-storage regression passed.                                                                                    |
+| Windows PowerShell lacked the initial static RNG API and mishandled npm warning stderr.                      | Used `RandomNumberGenerator.Create/GetBytes` and native exit-code checks; startup and verification helpers succeeded without printing signing keys.                                                     |
+| Incompatible Accept headers turned expected errors into 500s and exposed Development diagnostics.            | Added TryWriteAsync with direct safe JSON fallback; 26 Development/Production regressions verify statuses, errors and non-disclosure.                                                                   |
+| Offsetless dates depended on server timezone; unrelated edits truncated seconds/ticks.                       | Required explicit offsets with at most seven fractional digits, normalized UTC output and preserved the original due string when unchanged; JSON, real SQL and browser round trips verify the contract. |
+| Non-flags enum parsing accepted combined names; SQL assertions could miss individual defenses.               | Added strict status parsing, separate named CHECK assertions and a forged-owner UPDATE reaching SQL.                                                                                                    |
+| Angular 21 tooling retained 16 moderate affected development packages.                                       | Applied upstream Angular 22/TypeScript 6 migrations without forced peers or overrides; clean install, tests, build and full audit succeeded with zero reported vulnerabilities.                         |
 
-Executed verification includes real SQL CRUD/constraints/ownership, real HTTP JWT and account/task flows, Angular unit tests, production compilation and desktop/mobile Chromium browser workflows. Mocked application tests are not represented as proof of SQL behavior. SQL tests were configured and executed locally rather than skipped. No public deployment, Safari/Firefox/physical-device test, penetration test or human acceptance session is claimed.
+**Recorded before-and-after behavior:** a synchronized real-SQL seed test first
+failed on a duplicate `PK_Tasks` insert. After race recovery was implemented, both
+seed operations completed with exactly three samples. The retained
+[seed tests](tests/TaskManager.IntegrationTests/SeedAndSecurityTests.cs) exercise
+concurrency, repeatability and preservation of existing edits/passwords.
 
-## Problems actually detected and corrections implemented
+The seed fix has no pre-fix Git revision; its example describes recorded execution, not a reconstructed code diff. For the later stabilization, the initial Git commit and the uncommitted patch do support an actual before/after: `IProblemDetailsService.WriteAsync` failed negotiation and returned 500; `TryWriteAsync` plus a direct JSON fallback preserves 400 and validation details. The regression batch first had 16 failures/10 passes, then 26 passes. The frontend edit regression first changed `2026-11-04T15:00:45.1234567Z` to `2026-11-04T15:00:00.000Z`; it now preserves the exact original timestamp. See the [stabilization evidence](docs/STABILIZATION.md).
 
-1. Workspace inspection found an existing unrelated Church application using Entity Framework. Codex initially created an isolated local assessment branch/worktree. At the user's subsequent explicit request, TaskManager was moved to `C:\Users\thiag\source\repos\TaskManager` and given its own local Git repository, independent of Church. The original Church checkout remains intact. No new remote repository, push or assessment submission occurred.
-2. Initial NuGet package commands inherited a private Azure feed returning 401. A local NuGet.Config now clears inherited sources and uses nuget.org. No feed credentials were requested or added.
-3. Restore detected NU1902/NU1903 for a transitive System.Security.Cryptography.Pkcs package. SqlClient was updated to 7.1.1 and PKCS explicitly pinned to patched 10.0.14; restore then succeeded with warnings treated as errors.
-4. The Angular production compiler rejected a union of observables with incompatible overloads in auth/editor submission. The request variables now have an explicit common Observable type; production compilation passed.
-5. Initial browser workflows passed, but screenshot inspection revealed InProgress/Completed cards showing Todo in their native status selectors. New desktop/mobile assertions failed on the observed Todo value. Selecting the matching option explicitly fixed both; all browser workflows subsequently passed.
-6. Independent AI code review identified overlapping dashboard mutation/list requests that could restore stale data. Two new Angular tests failed (two pending writes; old GET not cancelled). Mutations now serialize and a superseded list subscription is cancelled. Regression tests pass.
-7. Review identified a storage failure path that could prevent AuthService construction. A new blocked-storage test failed with SecurityError from removeItem. Storage access now fails gracefully with a memory-only session and reliable in-memory logout; the regression passes.
-8. The first local key-generation shell command used a modern static API unavailable in Windows PowerShell 5.1. Startup failed key validation. The helper now uses RandomNumberGenerator.Create/GetBytes and the API was successfully started without printing a key.
+## 6. Testing and Validation
 
-9. Review found simultaneous seeded hosts could race on stable sample IDs. A deterministic SQL test synchronized two missing-task reads and failed on the duplicate insert. SqlTaskRepository now maps duplicate task keys to a specific application conflict; the seeder accepts it only after an owner-scoped re-read. The concurrent SQL test passes with exactly three samples.
-10. A frontend failure-recovery test showed that a rejected status update left the native dropdown showing the unsaved value. The selector now retains server state until a successful refresh. The new test first failed with Completed instead of Todo, then passed after correction.
+The [verification report](docs/VERIFICATION.md) and [stabilization evidence](docs/STABILIZATION.md) record actual Codex execution on 2026-11-02. Earlier development logs were removed during requested cleanup; their factual summaries remain. New raw logs/TRX/screenshots are retained locally under ignored `TestResults/stabilization/`, with a portable summary in the linked evidence.
 
-Review was performed by a separate Codex agent, read-only; it did not independently rerun the checks. The implementing agent ran the verification commands. Human code review remains pending. Remaining visible limitations include process-local rate limiting and Angular CLI development dependency advisories; no fake “all security issues solved” conclusion is made.
+| Verification                                              | Recorded result                                                                                                                           |
+| --------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `dotnet restore` and Release `dotnet build`               | Passed; zero build warnings/errors.                                                                                                       |
+| `dotnet test`                                             | 33 unit +93 integration tests passed; zero failed/skipped with real SQL configured.                                                       |
+| `npm ci`, `npm test`, `npm run build`                     | Succeeded after the upstream update; 17 frontend tests passed.                                                                            |
+| Playwright desktop/mobile Chromium                        | Six cases passed across UTC and America/Sao_Paulo: precision/local-time editing, registration/CRUD/logout and demo data.                  |
+| NuGet transitive, full npm and production-only npm audits | Zero reported vulnerabilities at verification time. Earlier 16 moderate development-package findings are retained as historical evidence. |
+| Explicit production migration command                     | Succeeded against an isolated SQL database.                                                                                               |
 
-## Security considerations
+Evidence distinguishes [NUnit/NSubstitute unit tests](tests/TaskManager.UnitTests)
+from [real SQL/HTTP integration tests](tests/TaskManager.IntegrationTests),
+[frontend tests](taskmanager-web/src/app) and
+[browser workflows](taskmanager-web/e2e/taskmanager.spec.ts). Mocked tests do not
+prove SQL behavior. The reviewer inspected source and separately reproduced an
+HTTP error-handling defect; Codex ran the full suites.
 
-- **Authentication:** salted platform password hashing; short-lived signed JWTs with issuer/audience/lifetime/algorithm/subject validation. Production signing keys are supplied externally.
-- **Authorization:** Authorize on protected controllers, AllowAnonymous on public endpoints. Client guards are navigation helpers only.
-- **Ownership:** verified subject passed to application services and SQL predicates on every applicable task operation. Foreign and missing IDs both return 404. Extra client UserId cannot set ownership.
-- **Input validation:** domain title/description/status rules, application email/password validation and MVC JSON validation; invalid enum integers/dates fail binding. Due dates can be overdue.
-- **SQL injection:** typed parameters for every value; fixed SQL, explicit mapping, no ORM. Generated test database identifiers are bounded/trusted fixture data.
-- **Browser boundary:** safe interpolation, scoped token interceptor, expiry/401 clearing, no token logging. sessionStorage remains vulnerable to same-origin XSS; memory fallback loses state on reload.
+Recorded test-first batches were 11 domain, 22 service, 14 HTTP and 10 Angular
+cases. The initial SQL RED occurred at the shared unimplemented initializer, not
+independently at each repository operation. Scaffolding, DTOs, configuration, UI
+markup and later seed/password/boundary checks were not all developed through
+individual RED/GREEN cycles. Browser verification also caught a test navigation
+race; waiting for the registration heading corrected synchronization. This is
+limited TDD evidence, not a claim of exhaustive test-first development.
 
-## Edge cases evaluated
+## 7. Authentication, Security, and Edge Cases
 
-Blank/whitespace/overlong titles; description limits; missing/null/invalid task bodies; integer/unsupported/null status; invalid/absent/overdue due dates; duplicate normalized emails; bad credentials/missing users; expired/wrong-key/wrong-issuer/wrong-audience/invalid-subject tokens; unknown/foreign task IDs; SQL-like and literal HTML strings; FK/unique/check constraints; deleted-between-read-and-update; repeated schema/seed initialization; stale dashboard requests; blocked session storage; mobile width and delete cancellation. See tests for exact assertions rather than interpreting this as exhaustive combinatorial coverage.
+- **Authentication:** salted platform password hashing and bounded password input;
+  dummy verification for absent accounts. JWT middleware validates signature,
+  algorithm, issuer, audience, lifetime and nonempty GUID subject. Production keys
+  are supplied externally.
+- **Authorization and ownership:** protected controllers use `Authorize`, public
+  endpoints use `AllowAnonymous`. Verified `sub` supplies the owner argument;
+  applicable SQL queries independently filter by that owner. Foreign/missing task
+  IDs return 404; extra client `UserId` cannot choose ownership.
+- **SQL injection and validation:** typed parameters, explicit mapping and domain
+  title/description/status rules; application email/password validation and MVC
+  binding checks. Generated test database identifiers are guarded fixture values.
+  Null/absent and overdue due dates remain valid.
+- **Dates and errors:** API input requires an explicit offset and at most seven fractional digits; UTC `Z` output and SQL datetime2(7) retain ticks. Unchanged editor dates retain the exact server value. Changed local fields use minute precision and browser DST rules. Unsupported Accept falls back to safe problem JSON with the original status in Development and Production.
+- **Browser boundary:** safe interpolation, scoped bearer interception and
+  expiry/401/logout clearing; no explicit token logging. sessionStorage remains
+  readable to same-origin XSS, and memory fallback is lost on reload.
 
-## Human responsibility and pending work
+Evaluated cases include blank/overlong fields, malformed/null bodies, invalid
+numeric/null statuses and dates, duplicate normalized emails, incorrect credentials,
+invalid/expired JWTs, unknown/foreign IDs, SQL-like/HTML text, database constraints,
+deletion between lookup/update, repeated migrations/seeding, concurrent requests,
+blocked storage, mobile width and delete cancellation. Tests and review reports
+define the exact assertions; this is not exhaustive combinatorial coverage.
 
-The developer remains accountable for understanding and explaining the architecture, checking generated code and dependency licenses/advisories, confirming tool attribution, validating setup in their environment, reviewing security and deployment controls, rehearsing the demo and obtaining publication authorization. AI review is useful evidence, not a substitute for ownership. Do not claim human decisions or validation until you have performed them. No push or submission is authorized by this document.
+## 8. Limitations and Human Responsibility
+
+The earlier review recorded three MEDIUM and four LOW findings. Their corrections and supporting regressions are recorded in the [resolution matrix](docs/REVIEW-2026-11-02.md#stabilization-resolution). A separate read-only Codex reviewer found no confirmed remaining code issue in the stabilization patch; it did not execute tests or supply human approval.
+
+Other documented tradeoffs are short-lived JWTs without refresh/revocation,
+process-local rate limiting, last-write-wins updates, version-name-only migrations
+without checksums and sessionStorage exposure. This is a small assessment, not a
+full identity provider or an operationally hardened deployment.
+
+Human review, dependency/license assessment, understanding every
+submitted line and interview rehearsal remain pending. Production TLS/proxy/CSP,
+secrets/permissions and operational controls require validation. Public deployment,
+Safari/Firefox/physical-device testing, penetration testing and human acceptance
+were not performed. The developer owns the final decisions and must explain and
+verify AI output before submission. No commit, push or submission is authorized
+by this historical stabilization record. Subsequent explicit authorization to commit, push and publish the repository is recorded in the [development evidence](docs/evidence/DEVELOPMENT.md#publication-authorization); it does not establish personal human code review.
