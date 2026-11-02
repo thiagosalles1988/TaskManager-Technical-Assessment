@@ -1,0 +1,30 @@
+# Development evidence
+
+Date: 2026-11-02. Commands executed by Codex; full raw logs/TRX retained in ignored `.superpowers` scratch files. This is a factual summary, not a claim of human review.
+
+- Workspace: existing Church main checkout clean; linked worktree `taskmanager-assessment` created with no checkout. Only the new branch snapshot replaces Church; original main worktree remains intact. No remote operation.
+- Environment: .NET SDK 10.0.403/runtime 10.0.14, Node 24.18.0/npm 11.16.0, SQL Server Express 2025 17.0.1145.4. Integrated SQL authentication succeeded.
+- Restore initially failed because the machine-level private Azure feed returned HTTP 401. Repository NuGet.Config clears inherited sources and uses nuget.org.
+- SqlClient 7.0.2 brought a vulnerable PKCS dependency (NU1902/NU1903). Selected SqlClient 7.1.1 and pinned System.Security.Cryptography.Pkcs 10.0.14. Restore then passed with warnings as errors.
+- M1 RED: 11 domain tests failed against temporary NotImplementedException methods; GREEN: 11/11 passed after invariant implementation.
+- M2 RED: 4 repository scenarios failed at unimplemented initializer. GREEN: 4/4 real SQL tests plus 11/11 unit tests passed. CRUD round trips, ownership filters, unique normalized email, FK, schema repeatability and invalid-data constraints executed in generated TaskManagerTest_* databases, dropped by test cleanup. M2 failure was fixture-level; individual repository tests did not each receive a separate RED run.
+- M3 RED: 22 service cases failed against temporary service methods, with 11 existing domain cases passing. NSubstitute substitutes only external repository/security boundaries. Service implementation followed that run.
+
+No claim is made that every source line or UI detail was developed with a separate RED/GREEN cycle. Scaffolding/configuration and DTOs were written directly; important business behaviors were written test-first in batches. Temporary unimplemented methods are removed as each milestone is completed.
+
+- M3 GREEN: 33 unit cases and 4 SQL scenarios passed.
+- M4 RED: 14 HTTP cases failed against the template API (404). GREEN: all 14 passed with real JWT/password/services/SQL. Subsequent password/seed verification tests passed; these were added after their implementations and are not claimed as TDD cycles.
+- M5 RED: 10 Angular auth/form cases failed against placeholder logic. GREEN: all 10 passed. The first production build exposed incompatible union-of-observable overloads in auth/editor submit handlers; typing the common request as Observable<unknown> fixed compilation.
+- Initial Playwright run: 4/4 desktop/mobile cases passed. Visual screenshot review then found native selects showing Todo for saved InProgress/Completed tasks. New assertions failed on both desktop/mobile; explicit option selection made both pass, followed by 4/4 browser cases.
+- Independent read-only Codex review found status selection, overlapping dashboard requests, blocked storage and concurrent sample seed races. It did not rerun verification. No confirmed backend IDOR/SQL injection/dependency direction bug was reported.
+- Dashboard race RED: two request-coordination cases failed (two writes accepted; superseded GET not cancelled), while 10 existing frontend cases passed. GREEN: serialized mutations/latest-list cancellation passed both.
+- Storage RED: blocked-storage construction threw SecurityError (1 failed/12 passed). GREEN: guarded storage access and memory fallback passed all 13 cases.
+- Seed concurrency RED: a real SQL test held two missing-sample reads at a barrier and then failed on PK_Tasks duplicate insertion. GREEN: duplicate-key mapping and an owner-scoped re-read passed; exactly three samples remained.
+- Failed status-update UI RED: selector remained Completed after rejected write, expected Todo. GREEN: retain server selection until success. Final frontend suite: 14/14.
+- Added HTTP verification boundaries for null/empty bodies, null/missing title, null/numeric status and maximum title/description lengths. Added an injected unexpected-failure case verifying generic 500 ProblemDetails without diagnostic leakage. These extra boundary cases were verification tests, not independently claimed RED/GREEN cycles.
+- Final .NET run: 33 unit +31 integration passed, 0 skipped, Release build 0 warnings/errors. NuGet transitive audit reported no vulnerable packages. SQL cleanup query found no remaining TaskManagerTest_* databases.
+- Final npm install/build/test succeeded; production audit 0 vulnerabilities; full dev audit still reports 16 moderate minimatch-related Angular CLI advisories. No forced major upgrade or transitive override was performed.
+- A final Playwright run exposed a test navigation race: email filled into the prior login form before the lazy register view mounted (registration error snapshot had empty email). Waiting for the registration heading fixed test synchronization. All four browser flows passed afterward, including no captured console/page errors in CRUD and no horizontal overflow.
+- Startup helper was executed successfully. Verification helper initially stopped on npm warning stderr under Windows PowerShell 5.1; it now preserves native output and checks native exit codes. Full helper rerun succeeds.
+- Remaining scope decisions: no deployment/refresh/revocation/ETag/pagination; documented last-write-wins and sessionStorage tradeoffs. Human review, IDE attribution confirmation and publication remain pending. No push/submission/merge into Church main.
+- Subsequent user request: move the assessment out of Church. TaskManager was relocated to `C:\Users\thiag\source\repos\TaskManager` and initialized as an independent local Git repository on `main`, without a remote. An SHA-256 manifest verified that all implementation files were preserved; only location/provenance documentation was updated. Release build passed with zero warnings/errors, all 33 unit and 31 SQL/HTTP integration tests passed, and all 14 frontend tests plus the Angular production build passed at the new location. TaskManager development servers were stopped for relocation. Church's tracked source remained unchanged.

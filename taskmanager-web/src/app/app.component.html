@@ -1,0 +1,21 @@
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="header-inner">
+    <a class="brand" routerLink="/tasks" aria-label="TaskManager home"
+      ><span class="brand-mark" aria-hidden="true">✓</span
+      ><span>Task<span class="brand-light">Manager</span></span></a
+    >
+    @if (auth.user(); as user) {
+      <nav aria-label="Account">
+        <span class="account-email">{{ user.email }}</span
+        ><button class="button secondary small" (click)="auth.logout()">Sign out</button>
+      </nav>
+    } @else {
+      <span class="header-note">A little clarity, every day.</span>
+    }
+  </div>
+</header>
+<main id="main" class="main-shell"><router-outlet /></main>
+<footer class="site-footer">
+  TaskManager <span aria-hidden="true">·</span> A focused space for what’s next.
+</footer>

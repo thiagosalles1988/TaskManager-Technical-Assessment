@@ -1,0 +1,741 @@
+
+You are a Senior .NET Software Engineer, Software Architect, and Technical Lead.
+
+Your task is to build a complete, production-minded but appropriately scoped Full Stack application for a Senior .NET Developer technical interview.
+
+This is a real technical assessment. The resulting code will be reviewed by senior engineers, and I must be able to explain every architectural decision, security measure, business rule, and test.
+
+Your primary goals are correctness, maintainability, clean architecture, security, testability, and a fully working end-to-end demonstration.
+
+DO NOT generate a superficial prototype, pseudocode, incomplete scaffolding, or unimplemented methods.
+
+Implement a real application, run the available builds and tests, verify the results, and fix discovered problems.
+
+Do not stop after producing a plan. Continue implementing the project through the defined milestones.
+
+==================================================
+1. PROJECT OVERVIEW
+==================================================
+
+Project name: TaskManager
+
+Build a responsive web application where registered users can securely manage their personal tasks.
+
+User Story:
+
+"As a registered user, I want to create, view, update, organize, and delete my personal tasks so that I can efficiently manage my daily responsibilities."
+
+Acceptance Criteria:
+
+- A user can register with an email and password.
+- A registered user can authenticate and receive a JWT.
+- User information is persisted in the database.
+- Authenticated users can create tasks.
+- Authenticated users can view their tasks.
+- Authenticated users can update their tasks.
+- Authenticated users can delete their tasks.
+- Tasks contain a title, description, status, and due date.
+- Every task is associated with its owner.
+- Users cannot read or modify another user's tasks.
+- Invalid requests return meaningful errors.
+- The frontend provides a responsive and intuitive interface.
+- The application includes demo credentials and seed data.
+- The solution includes automated tests and technical documentation.
+
+Keep the product scope intentionally small. Prioritize engineering quality over unnecessary features.
+
+==================================================
+2. MANDATORY TECHNICAL CONSTRAINTS
+==================================================
+
+Backend:
+- C# with .NET 10.
+- ASP.NET Core Web API.
+- Controller-based APIs using ASP.NET Core MVC conventions.
+- Clean Architecture.
+- Dependency Injection.
+- Asynchronous programming where appropriate.
+- SOLID principles.
+- RESTful API design.
+
+Frontend:
+- Angular with TypeScript.
+- Standalone components where supported.
+- Angular Router.
+- Reactive Forms.
+- Angular HttpClient.
+- Responsive CSS.
+
+Database:
+- SQL Server.
+- Microsoft.Data.SqlClient.
+- Raw ADO.NET for database access.
+- Parameterized SQL queries.
+
+Testing:
+- NUnit.
+- NSubstitute.
+- ASP.NET Core integration testing where appropriate.
+- Test-Driven Development (TDD).
+
+STRICTLY FORBIDDEN:
+- Entity Framework or Entity Framework Core.
+- Dapper.
+- MediatR or the Mediator library.
+- Any ORM or micro-ORM that replaces the intended ADO.NET implementation.
+
+Do not introduce unnecessary abstraction layers, generic repositories, event buses, or microservices.
+
+If .NET 10 or another required tool is unavailable, investigate the environment before selecting a compatible alternative. Document every deviation.
+
+==================================================
+3. SOLUTION ARCHITECTURE
+==================================================
+
+Use the following architecture:
+
+TaskManager.Domain
+TaskManager.Application
+TaskManager.Infrastructure
+TaskManager.Api
+
+Frontend:
+taskmanager-web
+
+Tests:
+TaskManager.UnitTests
+TaskManager.IntegrationTests
+
+DOMAIN LAYER
+
+Responsibilities:
+- Domain entities.
+- Domain invariants.
+- Task status definitions.
+- Business concepts.
+
+Example entities:
+- User
+- TaskItem
+
+The Domain layer must not depend on:
+- Infrastructure
+- ASP.NET Core
+- Angular
+- SQL Server
+- External persistence frameworks
+
+APPLICATION LAYER
+
+Responsibilities:
+- Application use cases.
+- Business services.
+- Validation.
+- Repository interfaces.
+- Dependency abstractions.
+- Application DTOs where appropriate.
+
+Create clearly defined services such as:
+- TaskService
+- AuthService
+
+Application business logic must not depend on concrete SQL implementations or HTTP controllers.
+
+Avoid unnecessary CQRS abstractions.
+
+INFRASTRUCTURE LAYER
+
+Responsibilities:
+- SQL Server connections.
+- Repository implementations.
+- ADO.NET commands.
+- Database mapping.
+- Data persistence.
+- Database initialization or migrations through SQL scripts.
+
+API LAYER
+
+Responsibilities:
+- ASP.NET Core controllers.
+- HTTP request/response contracts.
+- Authentication.
+- Authorization.
+- Dependency Injection configuration.
+- Exception handling.
+- OpenAPI documentation, if compatible.
+
+Controllers must remain thin.
+
+Do not put SQL queries or business rules in controllers.
+
+Dependency direction:
+
+API -> Application -> Domain
+Infrastructure -> Application/Domain
+
+Dependency Injection wires concrete implementations at the composition root.
+
+==================================================
+4. DATABASE DESIGN
+==================================================
+
+Create at least two tables:
+
+Users:
+- Id (uniqueidentifier, primary key)
+- Email
+- NormalizedEmail
+- PasswordHash
+- CreatedAtUtc
+
+Tasks:
+- Id (uniqueidentifier, primary key)
+- UserId (foreign key)
+- Title
+- Description
+- Status
+- DueDateUtc
+- CreatedAtUtc
+- UpdatedAtUtc
+
+Requirements:
+
+- Define appropriate SQL types.
+- Use proper primary and foreign keys.
+- Enforce unique normalized email addresses.
+- Add appropriate indexes.
+- Use UTC timestamps consistently.
+- Use database constraints where appropriate.
+- Never store plain-text passwords.
+- Use a secure password hashing implementation.
+- Never store secrets in source control.
+
+Provide versioned SQL scripts for database creation and schema initialization.
+
+Provide a repeatable, development-only seed mechanism.
+
+Create a demo user and sample tasks for evaluation.
+
+Document the demo credentials in README.md and make it clear that they are for development only.
+
+Use environment variables or .NET user secrets for sensitive configuration.
+
+If an existing SQL Server instance is available, support it through a connection string.
+
+Optionally provide Docker Compose for local SQL Server setup, but do not make Docker mandatory when an existing SQL Server instance is available.
+
+==================================================
+5. DATA ACCESS WITH RAW ADO.NET
+==================================================
+
+Use Microsoft.Data.SqlClient directly.
+
+Implement:
+- IUserRepository
+- ITaskRepository
+
+Repository operations must use:
+- SqlConnection
+- SqlCommand
+- SqlParameter
+- SqlDataReader
+- Async database methods
+- CancellationToken where appropriate
+- Proper connection and command disposal
+
+All SQL queries must be parameterized.
+
+Never concatenate untrusted input into SQL commands.
+
+Implement explicit mapping between database rows and domain entities.
+
+Ensure user ownership is enforced at the database query level for task operations whenever applicable.
+
+For example, updating a task must require both:
+- TaskId
+- Authenticated UserId
+
+Avoid reading a task without ownership validation and then trusting the client to update it.
+
+Do not introduce a custom ORM or overly complex data access framework.
+
+Use transactions only when operations require atomicity.
+
+==================================================
+6. AUTHENTICATION AND AUTHORIZATION
+==================================================
+
+Implement JWT Bearer authentication.
+
+Endpoints:
+
+POST /api/auth/register
+POST /api/auth/login
+
+GET /api/users/me
+GET /api/public/info
+
+Requirements:
+
+- Registration persists users.
+- Email validation.
+- Email uniqueness.
+- Secure password hashing and verification.
+- JWT token generation after successful login.
+- Configurable issuer, audience, signing key, and expiration.
+- No hardcoded production secrets.
+- Authorization using [Authorize].
+- Public endpoints using [AllowAnonymous].
+- User identity obtained from verified JWT claims.
+- Invalid credentials return HTTP 401.
+- Duplicate registration returns an appropriate conflict response.
+- Never expose password hashes.
+
+Use the established ASP.NET Core authentication middleware.
+
+Do not create custom cryptography.
+
+For this assignment, provide separate authentication and task API controllers within the same ASP.NET Core host.
+
+Document why separate API controllers were chosen instead of deploying separate services.
+
+==================================================
+7. TASK MANAGEMENT API
+==================================================
+
+Implement the following endpoints:
+
+GET    /api/tasks
+GET    /api/tasks/{id}
+POST   /api/tasks
+PUT    /api/tasks/{id}
+DELETE /api/tasks/{id}
+
+All task endpoints require authentication.
+
+Use appropriate HTTP status codes:
+
+200 - Successful retrieval
+201 - Resource created
+204 - Successful update or deletion
+400 - Validation failure
+401 - Missing or invalid authentication
+404 - Resource not found or not owned
+409 - Conflict when applicable
+500 - Unexpected server errors
+
+Use consistent error responses, preferably ProblemDetails.
+
+Never expose exception stack traces in production responses.
+
+Task validation:
+
+- Title is required.
+- Title maximum length: 120 characters.
+- Description maximum length: 2000 characters.
+- Status must be a supported value.
+- Due date must be a valid date when provided.
+- A task must always belong to a user.
+- UserId must never be trusted from the client request.
+
+Supported task statuses:
+- Todo
+- InProgress
+- Completed
+
+Do not add unnecessary business rules that prevent legitimate overdue tasks.
+
+Use consistent request and response DTOs.
+
+Return task information without exposing sensitive user data.
+
+==================================================
+8. FRONTEND WITH ANGULAR
+==================================================
+
+Create a professional, responsive, modern Angular application.
+
+The interface must be suitable for a senior developer technical interview.
+
+Build the following screens:
+
+1. Login
+2. Registration
+3. Task Dashboard
+4. Create/Edit Task
+
+Dashboard functionality:
+- Display current user's tasks.
+- Show task title, description, status, and due date.
+- Create a task.
+- Edit a task.
+- Delete a task with confirmation.
+- Change task status.
+- Provide loading indicators.
+- Provide empty states.
+- Show meaningful validation and API error messages.
+
+Optional lightweight filtering by status is welcome.
+
+Frontend architecture:
+
+- Typed models and DTOs.
+- Dedicated API services.
+- Authentication service.
+- Route guards.
+- HTTP interceptor for bearer tokens.
+- Reactive forms.
+- Reusable UI components where useful.
+- No unnecessary global state management library.
+
+Authentication:
+
+- Implement login/logout.
+- Handle authentication expiration and HTTP 401.
+- Do not log tokens.
+- For this assessment, use sessionStorage for the JWT if necessary and document the XSS tradeoff.
+- Avoid unsafe HTML injection.
+
+Design guidelines:
+
+- Professional and minimalistic.
+- Clean spacing and typography.
+- Consistent color palette.
+- Good mobile responsiveness.
+- Clear action buttons.
+- Accessible labels.
+- Proper focus states.
+- No horizontal overflow.
+- No browser console errors.
+
+Use regular CSS or SCSS rather than adding unnecessary UI dependencies.
+
+Do not spend excessive time on animations or purely decorative features.
+
+==================================================
+9. TEST-DRIVEN DEVELOPMENT
+==================================================
+
+Follow RED -> GREEN -> REFACTOR for important business behaviors.
+
+Where feasible, write a failing test before implementing the corresponding logic.
+
+Keep meaningful evidence of the TDD process.
+
+Never falsely claim that TDD was followed if tests were added after implementation.
+
+Create NUnit tests using NSubstitute where appropriate.
+
+Required unit test scenarios:
+
+TaskService:
+- Creates a valid task.
+- Rejects missing title.
+- Rejects excessively long title.
+- Rejects invalid status.
+- Updates an existing task.
+- Deletes an existing task.
+- Handles missing tasks.
+- Prevents modification by another user.
+
+AuthService:
+- Registers valid users.
+- Rejects duplicate email.
+- Rejects invalid registration.
+- Authenticates valid credentials.
+- Rejects incorrect credentials.
+- Verifies proper password handling.
+
+API tests:
+- Protected endpoint without JWT returns 401.
+- Public endpoint is accessible without JWT.
+- Invalid task requests return validation errors.
+- Valid task creation returns 201.
+- Unknown task returns 404.
+- Cross-user access is denied.
+
+Infrastructure tests:
+- Validate repository behavior.
+- Test actual SQL persistence using an isolated SQL Server test database or test container where available.
+- Validate ownership filtering.
+- Validate CRUD operations.
+- Validate unique constraints.
+
+Use fakes or NSubstitute for application tests.
+
+Use real SQL Server for repository integration tests where practical.
+
+Do not claim mocked tests prove actual SQL behavior.
+
+If Docker or SQL Server is unavailable, clearly distinguish tests that passed from integration tests that could not be executed.
+
+Run:
+- dotnet restore
+- dotnet build
+- dotnet test
+- npm install
+- npm run build
+
+Execute other available frontend tests if configured.
+
+Fix failures before declaring completion.
+
+==================================================
+10. GENERATIVE AI ASSESSMENT
+==================================================
+
+This assessment explicitly requires demonstrating proficiency with Generative AI coding tools.
+
+Create a file named:
+
+GENAI.md
+
+It MUST be located in the repository root.
+
+The assessment requires demonstrating a GenAI-assisted REST API implementation for task management.
+
+Include:
+
+1. AI coding tool used:
+   OpenAI Codex inside Visual Studio Code.
+
+2. The actual prompt used to generate the Task Management API or initial scaffold.
+
+3. A representative sample of the actual AI-generated code.
+
+4. Technical evaluation of the generated code.
+
+5. Validation approach, including actual test results.
+
+6. Problems detected during review, if any.
+
+7. Corrections and improvements actually implemented.
+
+8. Security considerations:
+   - Authentication
+   - Authorization
+   - Ownership validation
+   - Input validation
+   - SQL injection prevention
+
+9. Edge cases evaluated.
+
+10. Explanation of the human developer's responsibility when using GenAI.
+
+IMPORTANT:
+
+GENAI.md must describe the real development process.
+
+Do not fabricate a prompt history, code review findings, failed tests, successful tests, or human decisions that have not actually occurred.
+
+Record the actual prompt and representative code from this development.
+
+Where human review or validation is still required, mark it clearly as pending.
+
+Do not invent a narrative that makes the process look better than it was.
+
+==================================================
+11. PROJECT DOCUMENTATION
+==================================================
+
+Create a professional README.md in English.
+
+Include:
+
+- Project overview.
+- User story.
+- Acceptance criteria.
+- Technology stack.
+- Clean Architecture explanation.
+- Solution structure.
+- Architecture diagram using Mermaid.
+- Database schema.
+- Authentication strategy.
+- API endpoints.
+- Prerequisites.
+- Setup instructions.
+- Database initialization.
+- Environment configuration.
+- Backend startup instructions.
+- Frontend startup instructions.
+- Demo credentials.
+- Testing instructions.
+- Important architectural decisions.
+- Known limitations.
+- Future improvements.
+
+Create docs/ARCHITECTURE.md explaining:
+
+- Dependency direction.
+- Separation of concerns.
+- Repository design.
+- Raw ADO.NET decision.
+- Business rule enforcement.
+- Authentication approach.
+- Data access and security tradeoffs.
+- Design decisions and alternatives considered.
+
+Create docs/DEMO.md containing:
+
+- A concise technical presentation script.
+- A five-minute live demonstration plan.
+- Important architecture talking points.
+- Expected code review questions and answers.
+
+Do not present unimplemented features as completed.
+
+==================================================
+12. GITHUB AND SUBMISSION RULES
+==================================================
+
+The entire application must be in ONE GitHub repository.
+
+Do not create multiple repositories.
+
+Do not push code or submit the assessment without my explicit instruction.
+
+Repository contents:
+
+- Backend source code.
+- Angular frontend.
+- Automated tests.
+- Database scripts.
+- README.md.
+- GENAI.md at repository root.
+- Architecture and demo documentation.
+- Appropriate .gitignore.
+
+Do not include:
+- Symlinks.
+- node_modules.
+- bin or obj directories.
+- Build artifacts.
+- Secrets.
+- Real passwords.
+- Connection strings containing credentials.
+- Unnecessary generated files.
+
+Before completion, inspect Git-tracked files for symlinks and accidentally included secrets.
+
+==================================================
+13. IMPLEMENTATION WORKFLOW
+==================================================
+
+First inspect the current workspace.
+
+If the workspace is empty, initialize the solution.
+
+If files already exist, inspect them before modifying anything.
+
+Create a concise implementation plan with the following milestones:
+
+M1 - Solution structure, domain, and initial tests.
+M2 - Database schema and ADO.NET repositories.
+M3 - Application services and business validation.
+M4 - Authentication, authorization, and API endpoints.
+M5 - Angular frontend integration.
+M6 - Automated testing, fixes, and verification.
+M7 - Documentation and submission readiness.
+
+Implement each milestone sequentially.
+
+At each milestone:
+
+1. Make the necessary changes.
+2. Run relevant builds or tests.
+3. Fix failures.
+4. Verify architectural boundaries.
+5. Continue to the next milestone.
+
+Avoid unnecessary clarification questions.
+
+Make reasonable engineering decisions and document them.
+
+Ask only when an external dependency, credential, or irreversible action genuinely requires my involvement.
+
+Do not silently change mandatory requirements.
+
+Keep the implementation minimal but complete.
+
+Prioritize:
+1. Working backend and database.
+2. Authentication and ownership security.
+3. Passing tests.
+4. Functional Angular frontend.
+5. Complete documentation.
+6. Optional refinements.
+
+==================================================
+14. FINAL VERIFICATION
+==================================================
+
+Before declaring success:
+
+- Verify the solution builds.
+- Verify automated tests.
+- Verify the Angular production build.
+- Verify database connectivity if available.
+- Verify CRUD operations.
+- Verify authentication and authorization.
+- Verify user ownership isolation.
+- Verify registration and login.
+- Verify seed data.
+- Verify README instructions.
+- Verify GENAI.md exists at repository root.
+- Verify forbidden libraries are absent.
+- Verify the repository contains no symlinks.
+- Verify no secrets are being committed.
+
+Perform a final senior-level review focused on:
+
+- Security vulnerabilities.
+- SQL injection.
+- Broken access control / IDOR.
+- Missing validation.
+- Improper dependency direction.
+- Incorrect HTTP semantics.
+- Resource disposal.
+- Async programming errors.
+- Error handling.
+- Test quality.
+- Frontend/backend integration.
+
+Correct confirmed issues before finishing.
+
+Your final report must clearly separate:
+
+COMPLETED:
+Features and components actually implemented.
+
+VERIFIED:
+Builds, tests, and scenarios actually executed.
+
+NOT VERIFIED:
+Checks that could not be executed.
+
+KNOWN LIMITATIONS:
+Remaining issues and tradeoffs.
+
+MANUAL STEPS:
+Exactly what I must do locally to run, demonstrate, and publish the project.
+
+==================================================
+15. ENGINEERING STANDARD
+==================================================
+
+Write code as if it will be reviewed by experienced Senior .NET Engineers.
+
+Prefer:
+- Clear code over clever code.
+- Explicit dependencies over hidden dependencies.
+- Simple abstractions over unnecessary complexity.
+- Real business rules over anemic pass-through services.
+- Secure defaults over convenience.
+- Automated verification over assumptions.
+- Working functionality over decorative features.
+
+Do not overengineer the application.
+
+Deliver a complete, defensible, demonstrable solution.
+
+Start now by inspecting the workspace and proceed with implementation.
